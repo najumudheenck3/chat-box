@@ -4,7 +4,24 @@ import moment from "moment";
 import axios from "axios";
 import io from "socket.io-client";
 // Import emoji-picker-react
-import EmojiPicker from 'emoji-picker-react';
+import EmojiPicker from "emoji-picker-react";
+import {
+  Button,
+  IconButton,
+  CircularProgress,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from "@mui/material";
+import {
+  AttachFile as AttachFileIcon,
+  Send as SendIcon,
+  InsertEmoticon as EmojiIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 let socket;
 function Chat({
@@ -26,7 +43,9 @@ function Chat({
   const chatboxRef = useRef(null);
   const [showChat, setShowChat] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
-  const [agentDetails, setAgentDetails] = useState(null); // State to store agent details
+  const [agentDetails, setAgentDetails] = useState({
+    name: "shukoor",
+  }); // State to store agent details
   const [isAgentDetailsSaved, setIsAgentDetailsSaved] = useState(false); // Flag to check if agent details are saved
   const [noAgentsAvailable, setNoAgentsAvailable] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -55,96 +74,182 @@ function Chat({
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
       createdAt: "2025-03-19T11:26:37.209Z",
-      status:"sent"
+      status: "sent",
     },
   ]);
-  
+  const [files, setFiles] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const fileInputRef = useRef(null);
+  const handleFileSelect = (event) => {
+    const selectedFiles = Array.from(event.target.files);
+    // Validate file size (10MB limit per file)
+    const invalidFiles = selectedFiles.filter(
+      (file) => file.size > 10 * 1024 * 1024
+    );
+
+    if (invalidFiles.length > 0) {
+      setUploadError("Some files exceed the 10MB size limit");
+      return;
+    }
+
+    setFiles(selectedFiles);
+    setShowUploadDialog(true);
+  };
+  const handleUpload = async () => {
+    setUploading(true);
+    setUploadError("");
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      // Add message content and other data
+      const messageId = generateUniqueMessageId();
+      formData.append("messageId", messageId);
+      formData.append("senderType", "customer");
+      formData.append(
+        "customerInfo",
+        JSON.stringify({
+          name: customerInfo.name,
+          mobile: customerInfo.contact,
+          email: customerInfo.email,
+        })
+      );
+      formData.append(
+        "ChatId",
+        generateUniqueChatId(customerInfo.contact, customerInfo.email)
+      );
+      formData.append("content", message || "");
+      formData.append("socketId", socketId);
+
+      const response = await api.post(
+        "/widgetapi/messages/customerMessage",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.data.status) {
+        console.log(response.data, "response");
+        setFiles([]);
+        setMessage("");
+        setShowUploadDialog(false);
+
+        // Add message to chat
+
+        const newMessage = {
+          messageId: messageId,
+          content: message || "",
+          file_path: response?.data?.content?.latestMessage?.file_path || [],
+          senderType: "customer",
+          createdAt: new Date(),
+          status: "sent",
+        };
+        console.log(
+          response.data.content.latestMessage.file_path,
+          "newmesageee"
+        );
+        setChatMessages((prev) => [...prev, newMessage]);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadError("Failed to upload files. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
   // Function to toggle emoji picker visibility
   const toggleEmojiPicker = () => {
     setShowEmojiPicker(!showEmojiPicker);
   };
-  
+
   // Function to handle emoji click/selection - modified to not close picker
   const onEmojiClick = (emojiObject) => {
-    setMessage(prevMessage => prevMessage + emojiObject.emoji);
+    setMessage((prevMessage) => prevMessage + emojiObject.emoji);
     // Removed the line that closes the picker
   };
-  
+
   // Click outside handler for emoji picker - with exceptions for the emoji button
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
-  
+
   useEffect(() => {
     function handleClickOutside(event) {
       // Only close if click outside both emoji picker and emoji button
       if (
-        emojiPickerRef.current && 
+        emojiPickerRef.current &&
         !emojiPickerRef.current.contains(event.target) &&
         emojiButtonRef.current &&
         !emojiButtonRef.current.contains(event.target)
@@ -152,7 +257,7 @@ function Chat({
         setShowEmojiPicker(false);
       }
     }
-    
+
     // Add event listener
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -160,7 +265,7 @@ function Chat({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [emojiPickerRef, emojiButtonRef]);
-  
+
   useEffect(() => {
     const storedCustomerInfo = localStorage.getItem("customerInfo");
     console.log(storedCustomerInfo, "storedCustomerInfo");
@@ -247,7 +352,6 @@ function Chat({
     };
   }, [chatMessages]);
 
-
   useEffect(() => {
     const getChatData = async () => {
       const chatId = localStorage.getItem("chatId");
@@ -267,12 +371,12 @@ function Chat({
     };
     getChatData();
   }, []);
-  
+
   useEffect(() => {
     if (chatboxRef.current) {
-        chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight;  // Scroll to the bottom
+      chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight; // Scroll to the bottom
     }
-  }, [chatMessages]); 
+  }, [chatMessages]);
 
   // Function to generate a unique ChatId based on contact and email
   const generateUniqueChatId = (contact, email) => {
@@ -280,12 +384,12 @@ function Chat({
     const hash = CryptoJS.SHA256(combined).toString(CryptoJS.enc.Base64); // Create a hash and encode it to Base64
     return "web-" + hash.substring(0, 16); // Ensure ChatId is no longer than 16 characters
   };
-  
+
   const generateUniqueMessageId = () => {
     // Create a unique ID using timestamp and random value
     return `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   };
-  
+
   const toggleChat = () => {
     setShowChat(!showChat);
   };
@@ -618,14 +722,184 @@ function Chat({
                 <div className="row" key={index}>
                   {message.senderType === "customer" ? (
                     <div className="customer">
-                      <p>{message.content}</p>
-                      <span>{moment(message.createdAt).format("hh:mm A")}</span>
+                      {(message.content || message.file_path?.length > 0) && (
+                        <>
+                          {message.content && <p>{message.content}</p>}
+                          {message.file_path &&
+                            message.file_path.length > 0 && (
+                              <div>
+                                {message.file_path.map(
+                                  (filePath, fileIndex) => {
+                                    const fullFilePath = `${appEndpoint}${filePath}`;
+                                    const fileExtension = filePath
+                                      .split(".")
+                                      .pop()
+                                      .toLowerCase();
+
+                                    // Determine file type
+                                    const isImage = [
+                                      "jpg",
+                                      "jpeg",
+                                      "png",
+                                      "gif",
+                                      "bmp",
+                                      "webp",
+                                    ].includes(fileExtension);
+                                    const isVideo = [
+                                      "mp4",
+                                      "webm",
+                                      "ogg",
+                                    ].includes(fileExtension);
+                                    const isAudio = [
+                                      "mp3",
+                                      "wav",
+                                      "aac",
+                                    ].includes(fileExtension);
+
+                                    const isDocument = [
+                                      "pdf",
+                                      "doc",
+                                      "docx",
+                                      "txt",
+                                      "rtf",
+                                      "odt",
+                                    ].includes(fileExtension);
+
+                                    const isSpreadsheet = [
+                                      "xls",
+                                      "xlsx",
+                                      "csv",
+                                      "ods",
+                                      "xlsm",
+                                      "xlsb",
+                                    ].includes(fileExtension);
+
+                                    const isPresentationFile = [
+                                      "ppt",
+                                      "pptx",
+                                      "odp",
+                                    ].includes(fileExtension);
+                                    return (
+                                      <div key={fileIndex}>
+                                        {isImage && (
+                                          <img
+                                            src={fullFilePath}
+                                            alt={`Uploaded file ${
+                                              fileIndex + 1
+                                            }`}
+                                            style={{
+                                              maxWidth: "200px",
+                                              maxHeight: "200px",
+                                              objectFit: "contain",
+                                            }}
+                                            onClick={() =>
+                                              window.open(
+                                                fullFilePath,
+                                                "_blank"
+                                              )
+                                            }
+                                          />
+                                        )}
+                                        {isVideo && (
+                                          <video
+                                            controls
+                                            style={{
+                                              maxWidth: "200px",
+                                              maxHeight: "200px",
+                                            }}
+                                          >
+                                            <source
+                                              src={fullFilePath}
+                                              type={`video/${fileExtension}`}
+                                            />
+                                            Your browser does not support the
+                                            video tag.
+                                          </video>
+                                        )}
+                                        {isAudio && (
+                                          <div
+                                            key={fileIndex}
+                                            className="audio-container"
+                                            style={{
+                                              width: "200px",
+                                              padding: "5px",
+                                              backgroundColor: "#f5f5f5",
+                                              borderRadius: "8px",
+                                              // marginBottom: "5px",
+                                            }}
+                                          >
+                                            <audio
+                                              controls
+                                              preload="metadata"
+                                              style={{
+                                                width: "200px",
+                                                height: "15px",
+                                                marginBottom: "5px",
+                                              }}
+                                            >
+                                              <source
+                                                src={fullFilePath}
+                                                type={`audio/${fileExtension}`}
+                                              />
+                                              {`Your browser does not support the audio element for ${fileExtension}`}
+                                            </audio>
+                                          </div>
+                                        )}
+                                        {(isDocument ||
+                                          isSpreadsheet ||
+                                          isPresentationFile) && (
+                                          <div className="file-document">
+                                            <div className="file-icon">
+                                              {isDocument && "📄"}
+                                              {isSpreadsheet && "📊"}
+                                              {isPresentationFile && "📽️"}
+                                            </div>
+                                            <a
+                                              href={fullFilePath}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="file-download-link"
+                                            >
+                                              Download{" "}
+                                              {fileExtension.toUpperCase()} File
+                                            </a>
+                                          </div>
+                                        )}
+                                        {!isImage &&
+                                          !isVideo &&
+                                          !isAudio &&
+                                          !isDocument &&
+                                          !isSpreadsheet &&
+                                          !isPresentationFile && (
+                                            <a
+                                              href={fullFilePath}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="file-download-link"
+                                            >
+                                              Download{" "}
+                                              {fileExtension.toUpperCase()} File
+                                            </a>
+                                          )}
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            )}
+                          <span>
+                            {moment(message.createdAt).format("hh:mm A")}
+                          </span>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="agent">
                       <img src="/assets/profile.jpg" alt="Agent" />
                       <div className="text">
-                        <label>{agentDetails?.name || agentDetails?.user_name}</label>
+                        <label>
+                          {agentDetails?.name || agentDetails?.user_name}
+                        </label>
                         <p>{message.content}</p>
                         <span>
                           {moment(message.createdAt).format("hh:mm A")}
@@ -647,23 +921,33 @@ function Chat({
                 onKeyPress={handleKeyPress}
               ></textarea>
               <div className="options">
-                <img src="/assets/attachments.svg" alt=""/>
+                <label htmlFor="file-upload" style={{ cursor: "pointer" }}>
+                  <img src="/assets/attachments.svg" alt="Attach File" />
+                </label>
+                <input
+                  id="file-upload"
+                  type="file"
+                  ref={fileInputRef}
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={handleFileSelect}
+                />
                 <div style={{ position: "relative" }}>
-                  <img 
+                  <img
                     ref={emojiButtonRef}
-                    src="/assets/smile.svg" 
-                    alt="Emoji" 
+                    src="/assets/smile.svg"
+                    alt="Emoji"
                     onClick={toggleEmojiPicker}
                     style={{ cursor: "pointer" }}
                   />
                   {showEmojiPicker && (
-                    <div 
+                    <div
                       ref={emojiPickerRef}
                       style={{
                         position: "absolute",
                         bottom: "40px",
                         right: "0",
-                        zIndex: "999"
+                        zIndex: "999",
                       }}
                     >
                       <EmojiPicker onEmojiClick={onEmojiClick} />
@@ -678,6 +962,46 @@ function Chat({
           </>
         )}
       </div>
+      {/* Upload Dialog */}
+      <Dialog
+        open={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+      >
+        <DialogTitle>Upload Files</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Selected files ({files?.length}):
+            {files?.map((file, index) => (
+              <Typography key={index} variant="body2">
+                {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              </Typography>
+            ))}
+          </DialogContentText>
+          {uploadError && (
+            <Typography color="error" variant="body2">
+              {uploadError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setFiles([]);
+              setShowUploadDialog(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpload}
+            disabled={uploading}
+            variant="contained"
+            color="primary"
+          >
+            {uploading ? <CircularProgress size={24} /> : "Upload & Send"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
