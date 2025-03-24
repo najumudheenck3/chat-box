@@ -1,4 +1,4 @@
-import { useState,useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import CryptoJS from "crypto-js";
 import moment from "moment";
 import axios from "axios";
@@ -21,8 +21,12 @@ function Chat({
       "app-id": appId,
     },
   });
+  const chatboxRef = useRef(null);
   const [showChat, setShowChat] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [agentDetails, setAgentDetails] = useState(null); // State to store agent details
+  const [isAgentDetailsSaved, setIsAgentDetailsSaved] = useState(false); // Flag to check if agent details are saved
+  const [noAgentsAvailable, setNoAgentsAvailable] = useState(false);
   const [socketId, setSocketId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -47,67 +51,80 @@ function Chat({
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "customer",
       content: "Hello, How are you doing ?",
-      createdAt: "08:15 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
     {
       senderType: "agent",
       content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "08:16 AM",
+      createdAt: "2025-03-19T11:26:37.209Z",
+      status:"sent"
     },
   ]);
+
   useEffect(() => {
     const storedCustomerInfo = localStorage.getItem("customerInfo");
-    console.log(storedCustomerInfo,"storedCustomerInfo");
+    console.log(storedCustomerInfo, "storedCustomerInfo");
     const customerId = localStorage.getItem("customerId");
     const customerRoom = `customer-${customerId}`;
     if (storedCustomerInfo) {
@@ -130,11 +147,102 @@ function Chat({
       socket.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    const handleMessageReceived = (newMessageReceived) => {
+      // Check if Notification API is supported
+      if (window.Notification && Notification.permission === "granted") {
+        // Display desktop notification
+        new Notification("New message received", {
+          body: newMessageReceived.content,
+        });
+      } else if (Notification.permission !== "denied") {
+        // Request permission to display notifications
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            new Notification("New message received", {
+              body: newMessageReceived.content,
+            });
+          }
+        });
+      }
+      console.log("Message received from server:", newMessageReceived);
+      if (newMessageReceived.agent && !isAgentDetailsSaved) {
+        // Save agent details if not already saved
+        if (!agentDetails && !newMessageReceived.closed) {
+          const newAgentDetails = {
+            user_name: newMessageReceived.agent.user_name,
+            name: newMessageReceived.agent.name,
+          };
+          setAgentDetails(newAgentDetails);
+          localStorage.setItem("agentDetails", JSON.stringify(newAgentDetails));
+        }
+      }
+      if (newMessageReceived.customer) {
+        localStorage.setItem("customerId", newMessageReceived.customer.id);
+      }
+      setChatMessages((prevMessages) => [...prevMessages, newMessageReceived]);
+      if (newMessageReceived.closed) {
+        localStorage.clear();
+        setIsRegistered(false);
+        setCustomerInfo({
+          name: "",
+          contact: "",
+          email: "",
+          firstMessage: "",
+        });
+        setAgentDetails(null);
+        setIsAgentDetailsSaved(false);
+        setNoAgentsAvailable(false);
+        setMessage("");
+        // setFiles([]);
+        setChatMessages([]);
+      }
+    };
+    socket?.on("message received", handleMessageReceived);
+
+    return () => {
+      if (socket) {
+        socket.off("message received", handleMessageReceived);
+      }
+    };
+  }, [chatMessages]);
+
+
+  useEffect(() => {
+    const getChatData = async () => {
+      const chatId = localStorage.getItem("chatId");
+      if (chatId) {
+        const { data } = await api.get(
+          `/widgetapi/messages/allMessages/${chatId}`
+        );
+        if (data && data.status === false) {
+          setChatMessages([]);
+        }
+        if (data.status) {
+          setChatMessages(data.data);
+        }
+      } else {
+        setChatMessages([]);
+      }
+    };
+    getChatData();
+  }, []);
+  useEffect(() => {
+    if (chatboxRef.current) {
+        chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight;  // Scroll to the bottom
+    }
+}, [chatMessages]); 
+
   // Function to generate a unique ChatId based on contact and email
   const generateUniqueChatId = (contact, email) => {
     const combined = `${contact}-${email}`;
     const hash = CryptoJS.SHA256(combined).toString(CryptoJS.enc.Base64); // Create a hash and encode it to Base64
     return "web-" + hash.substring(0, 16); // Ensure ChatId is no longer than 16 characters
+  };
+  const generateUniqueMessageId = () => {
+    // Create a unique ID using timestamp and random value
+    return `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   };
   const toggleChat = () => {
     setShowChat(!showChat);
@@ -200,7 +308,7 @@ function Chat({
     if (validateForm()) {
       const customerInfo = { ...formData }; // Assign formData values to a new variable
       console.log("Customer Info:", customerInfo);
-      setCustomerInfo(JSON.stringify(formData))
+      setCustomerInfo(JSON.stringify(formData));
       localStorage.setItem("customerInfo", JSON.stringify(customerInfo));
       setIsRegistered(true);
       const content = {
@@ -210,14 +318,11 @@ function Chat({
           mobile: customerInfo.contact,
           email: customerInfo.email,
         },
-        ChatId: generateUniqueChatId(
-          customerInfo.contact,
-          customerInfo.email
-        ),
+        ChatId: generateUniqueChatId(customerInfo.contact, customerInfo.email),
         content: customerInfo.firstMessage,
-        createdAt: moment().format("hh:mm A"),
+        createdAt: new Date(),
         status: "pending", // Mark as pending initially
-        // socketId: socketId,
+        socketId: socketId,
       };
       console.log(content, "haihellooo");
       setChatMessages((prevMessages) => [...prevMessages, content]);
@@ -270,7 +375,7 @@ function Chat({
     setMessage(e.target.value);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (message.trim()) {
       console.log("Sending message:", message);
       const content = {
@@ -281,18 +386,68 @@ function Chat({
           mobile: customerInfo.contact,
           email: customerInfo.email,
         },
-        ChatId: generateUniqueChatId(
-          customerInfo.contact,
-          customerInfo.email
-        ),
+        ChatId: generateUniqueChatId(customerInfo.contact, customerInfo.email),
         content: message.trim(),
-        createdAt: moment().format("hh:mm A"),
+        createdAt: new Date(),
         status: "pending",
-        // socketId: socketId,
+        socketId: socketId,
       };
       setChatMessages((prev) => [...prev, content]);
       setMessage("");
-      // Here you would typically add the message to your chat state or send to API
+      try {
+        const { data } = await api.post(
+          "/widgetapi/messages/customerMessage",
+          content
+        );
+        if (data.status) {
+          if (data.content && !data.content.agent_assigned_on_time) {
+            // Show alert if no available agents
+            console.log(
+              data.content.message || "No available agents to handle the chat."
+            );
+            setNoAgentsAvailable(true);
+            setChatMessages((prevMessages) =>
+              prevMessages.map((msg) =>
+                msg.messageId === content.messageId
+                  ? { ...msg, status: "queued" }
+                  : msg
+              )
+            );
+          } else {
+            // Update the message to 'sent' status on success
+            setChatMessages((prevMessages) =>
+              prevMessages.map((msg) =>
+                msg.messageId === content.messageId
+                  ? { ...msg, status: "sent" }
+                  : msg
+              )
+            );
+            if (data.chatId) {
+              localStorage.setItem("chatId", data.chatId);
+            }
+            // Reset noAgentsAvailable to false since message was successfully sent
+            setNoAgentsAvailable(false);
+          }
+        } else {
+          // Update message status to 'failed' if the message was not successfully sent
+          setChatMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+              msg.messageId === content.messageId
+                ? { ...msg, status: "failed" }
+                : msg
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        setChatMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.messageId === content.messageId
+              ? { ...msg, status: "failed" }
+              : msg
+          )
+        );
+      }
     }
   };
 
@@ -327,7 +482,7 @@ function Chat({
           </div>
           {isRegistered ? (
             <>
-              <h1>hellooo</h1>
+              <h1>hellooo {customerInfo.name}</h1>
               <p>
                 Fill in your information to start chatting with the first
                 available agent
@@ -377,9 +532,7 @@ function Chat({
                 />
               </div>
               {formErrors.contact && (
-                <span className="error-message">
-                  {formErrors.contact}
-                </span>
+                <span className="error-message">{formErrors.contact}</span>
               )}
             </div>
             <div className="field">
@@ -416,21 +569,23 @@ function Chat({
         {/* Chat Box */}
         {isRegistered && (
           <>
-            <div className="chatBox">
+            <div className="chatBox" ref={chatboxRef}>
               {chatMessages.map((message, index) => (
                 <div className="row" key={index}>
                   {message.senderType === "customer" ? (
                     <div className="customer">
                       <p>{message.content}</p>
-                      <span>{message.createdAt}</span>
+                      <span>{moment(message.createdAt).format("hh:mm A")}</span>
                     </div>
                   ) : (
                     <div className="agent">
                       <img src="/assets/profile.jpg" alt="Agent" />
                       <div className="text">
-                        <label>Agent</label>
+                        <label>{agentDetails?.name || agentDetails?.user_name}</label>
                         <p>{message.content}</p>
-                        <span>{message.createdAt}</span>
+                        <span>
+                          {moment(message.createdAt).format("hh:mm A")}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -447,6 +602,10 @@ function Chat({
                 onChange={handleMessageChange}
                 onKeyPress={handleKeyPress}
               ></textarea>
+              <div className="options">
+                    <img src="/assets/attachments.svg" alt=""/>
+                    <img src="/assets/smile.svg" alt=""/>
+                </div>
               <div className="send" onClick={handleSendMessage}>
                 <img src="/assets/Send.svg" alt="Send" />
               </div>
