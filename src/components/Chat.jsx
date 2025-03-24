@@ -3,6 +3,8 @@ import CryptoJS from "crypto-js";
 import moment from "moment";
 import axios from "axios";
 import io from "socket.io-client";
+// Import emoji-picker-react
+import EmojiPicker from 'emoji-picker-react';
 
 let socket;
 function Chat({
@@ -27,6 +29,7 @@ function Chat({
   const [agentDetails, setAgentDetails] = useState(null); // State to store agent details
   const [isAgentDetailsSaved, setIsAgentDetailsSaved] = useState(false); // Flag to check if agent details are saved
   const [noAgentsAvailable, setNoAgentsAvailable] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [socketId, setSocketId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -121,7 +124,43 @@ function Chat({
       status:"sent"
     },
   ]);
-
+  
+  // Function to toggle emoji picker visibility
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker(!showEmojiPicker);
+  };
+  
+  // Function to handle emoji click/selection - modified to not close picker
+  const onEmojiClick = (emojiObject) => {
+    setMessage(prevMessage => prevMessage + emojiObject.emoji);
+    // Removed the line that closes the picker
+  };
+  
+  // Click outside handler for emoji picker - with exceptions for the emoji button
+  const emojiPickerRef = useRef(null);
+  const emojiButtonRef = useRef(null);
+  
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // Only close if click outside both emoji picker and emoji button
+      if (
+        emojiPickerRef.current && 
+        !emojiPickerRef.current.contains(event.target) &&
+        emojiButtonRef.current &&
+        !emojiButtonRef.current.contains(event.target)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    }
+    
+    // Add event listener
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      // Remove event listener on cleanup
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [emojiPickerRef, emojiButtonRef]);
+  
   useEffect(() => {
     const storedCustomerInfo = localStorage.getItem("customerInfo");
     console.log(storedCustomerInfo, "storedCustomerInfo");
@@ -228,11 +267,12 @@ function Chat({
     };
     getChatData();
   }, []);
+  
   useEffect(() => {
     if (chatboxRef.current) {
         chatboxRef.current.scrollTop = chatboxRef.current.scrollHeight;  // Scroll to the bottom
     }
-}, [chatMessages]); 
+  }, [chatMessages]); 
 
   // Function to generate a unique ChatId based on contact and email
   const generateUniqueChatId = (contact, email) => {
@@ -240,10 +280,12 @@ function Chat({
     const hash = CryptoJS.SHA256(combined).toString(CryptoJS.enc.Base64); // Create a hash and encode it to Base64
     return "web-" + hash.substring(0, 16); // Ensure ChatId is no longer than 16 characters
   };
+  
   const generateUniqueMessageId = () => {
     // Create a unique ID using timestamp and random value
     return `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   };
+  
   const toggleChat = () => {
     setShowChat(!showChat);
   };
@@ -394,6 +436,8 @@ function Chat({
       };
       setChatMessages((prev) => [...prev, content]);
       setMessage("");
+      // Close emoji picker when sending message
+      setShowEmojiPicker(false);
       try {
         const { data } = await api.post(
           "/widgetapi/messages/customerMessage",
@@ -603,9 +647,30 @@ function Chat({
                 onKeyPress={handleKeyPress}
               ></textarea>
               <div className="options">
-                    <img src="/assets/attachments.svg" alt=""/>
-                    <img src="/assets/smile.svg" alt=""/>
+                <img src="/assets/attachments.svg" alt=""/>
+                <div style={{ position: "relative" }}>
+                  <img 
+                    ref={emojiButtonRef}
+                    src="/assets/smile.svg" 
+                    alt="Emoji" 
+                    onClick={toggleEmojiPicker}
+                    style={{ cursor: "pointer" }}
+                  />
+                  {showEmojiPicker && (
+                    <div 
+                      ref={emojiPickerRef}
+                      style={{
+                        position: "absolute",
+                        bottom: "40px",
+                        right: "0",
+                        zIndex: "999"
+                      }}
+                    >
+                      <EmojiPicker onEmojiClick={onEmojiClick} />
+                    </div>
+                  )}
                 </div>
+              </div>
               <div className="send" onClick={handleSendMessage}>
                 <img src="/assets/Send.svg" alt="Send" />
               </div>
