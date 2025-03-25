@@ -43,9 +43,7 @@ function Chat({
   const chatboxRef = useRef(null);
   const [showChat, setShowChat] = useState(widgetOpen);
   const [isRegistered, setIsRegistered] = useState(false);
-  const [agentDetails, setAgentDetails] = useState({
-    name: "shukoor",
-  }); // State to store agent details
+  const [agentDetails, setAgentDetails] = useState({}); // State to store agent details
   const [isAgentDetailsSaved, setIsAgentDetailsSaved] = useState(false); // Flag to check if agent details are saved
   const [noAgentsAvailable, setNoAgentsAvailable] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -291,6 +289,7 @@ function Chat({
         }
         if (data.status) {
           setChatMessages(data.data);
+          setAgentDetails(data.agentData);
         }
       } else {
         setChatMessages([]);
@@ -825,7 +824,14 @@ function Chat({
                       {(message.content || message.file_path?.length > 0) && (
                         <>
                           <img
-                            src="/assets/profile.jpg"
+                            src={
+                              agentDetails?.avatar
+                                ? `${endpoint}${agentDetails.avatar}`
+                                : "/assets/profile.jpg"
+                            }
+                            onError={(e) => {
+                              e.target.src = "/assets/profile.jpg";
+                            }}
                             alt="Agent"
                             className="agent-profile-img"
                           />
