@@ -41,7 +41,7 @@ function Chat({
     },
   });
   const chatboxRef = useRef(null);
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(widgetOpen);
   const [isRegistered, setIsRegistered] = useState(false);
   const [agentDetails, setAgentDetails] = useState({
     name: "shukoor",
@@ -69,80 +69,7 @@ function Chat({
     firstMessage: "",
   });
   const [message, setMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState([
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "customer",
-      content: "Hello, How are you doing ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-    {
-      senderType: "agent",
-      content: "I'm doing well, thank you! How Can I help you today ?",
-      createdAt: "2025-03-19T11:26:37.209Z",
-      status: "sent",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
   const [files, setFiles] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -630,7 +557,7 @@ function Chat({
           </div>
           {isRegistered ? (
             <>
-              <h1>hellooo {customerInfo.name}</h1>
+              <h1>Hai {customerInfo.name}</h1>
               <p>
                 Fill in your information to start chatting with the first
                 available agent
@@ -895,16 +822,189 @@ function Chat({
                     </div>
                   ) : (
                     <div className="agent">
-                      <img src="/assets/profile.jpg" alt="Agent" />
-                      <div className="text">
-                        <label>
-                          {agentDetails?.name || agentDetails?.user_name}
-                        </label>
-                        <p>{message.content}</p>
-                        <span>
-                          {moment(message.createdAt).format("hh:mm A")}
-                        </span>
-                      </div>
+                      {(message.content || message.file_path?.length > 0) && (
+                        <>
+                          <img
+                            src="/assets/profile.jpg"
+                            alt="Agent"
+                            className="agent-profile-img"
+                          />
+                          <div className="text">
+                            <label>
+                              {agentDetails?.name || agentDetails?.user_name}
+                            </label>
+                            {message.content && <p>{message.content}</p>}
+                            {/* Display agent files if available */}
+                            {message.file_path &&
+                              message.file_path.length > 0 && (
+                                <div className="agent-files">
+                                  {message.file_path.map(
+                                    (filePath, fileIndex) => {
+                                      const fullFilePath = `${appEndpoint}${filePath}`;
+                                      const fileExtension = filePath
+                                        .split(".")
+                                        .pop()
+                                        .toLowerCase();
+
+                                      // Determine file type
+                                      const isImage = [
+                                        "jpg",
+                                        "jpeg",
+                                        "png",
+                                        "gif",
+                                        "bmp",
+                                        "webp",
+                                      ].includes(fileExtension);
+                                      const isVideo = [
+                                        "mp4",
+                                        "webm",
+                                        "ogg",
+                                      ].includes(fileExtension);
+                                      const isAudio = [
+                                        "mp3",
+                                        "wav",
+                                        "aac",
+                                      ].includes(fileExtension);
+                                      const isDocument = [
+                                        "pdf",
+                                        "doc",
+                                        "docx",
+                                        "txt",
+                                        "rtf",
+                                        "odt",
+                                      ].includes(fileExtension);
+                                      const isSpreadsheet = [
+                                        "xls",
+                                        "xlsx",
+                                        "csv",
+                                        "ods",
+                                        "xlsm",
+                                        "xlsb",
+                                      ].includes(fileExtension);
+                                      const isPresentationFile = [
+                                        "ppt",
+                                        "pptx",
+                                        "odp",
+                                      ].includes(fileExtension);
+
+                                      return (
+                                        <div
+                                          key={fileIndex}
+                                          className="file-container"
+                                        >
+                                          {isImage && (
+                                            <img
+                                              src={fullFilePath}
+                                              alt={`Uploaded file ${
+                                                fileIndex + 1
+                                              }`}
+                                              style={{
+                                                maxWidth: "200px",
+                                                maxHeight: "200px",
+                                                objectFit: "contain",
+                                              }}
+                                              onClick={() =>
+                                                window.open(
+                                                  fullFilePath,
+                                                  "_blank"
+                                                )
+                                              }
+                                            />
+                                          )}
+                                          {isVideo && (
+                                            <video
+                                              controls
+                                              style={{
+                                                maxWidth: "200px",
+                                                maxHeight: "200px",
+                                              }}
+                                            >
+                                              <source
+                                                src={fullFilePath}
+                                                type={`video/${fileExtension}`}
+                                              />
+                                              Your browser does not support the
+                                              video tag.
+                                            </video>
+                                          )}
+                                          {isAudio && (
+                                            <div
+                                              className="audio-container"
+                                              style={{
+                                                width: "200px",
+                                                padding: "5px",
+                                                backgroundColor: "#f5f5f5",
+                                                borderRadius: "8px",
+                                              }}
+                                            >
+                                              <audio
+                                                controls
+                                                preload="metadata"
+                                                style={{
+                                                  width: "200px",
+                                                  height: "15px",
+                                                  marginBottom: "5px",
+                                                }}
+                                              >
+                                                <source
+                                                  src={fullFilePath}
+                                                  type={`audio/${fileExtension}`}
+                                                />
+                                                {`Your browser does not support the audio element for ${fileExtension}`}
+                                              </audio>
+                                            </div>
+                                          )}
+                                          {(isDocument ||
+                                            isSpreadsheet ||
+                                            isPresentationFile) && (
+                                            <div className="file-document">
+                                              <div className="file-icon">
+                                                {isDocument && "📄"}
+                                                {isSpreadsheet && "📊"}
+                                                {isPresentationFile && "📽️"}
+                                              </div>
+
+                                              <a
+                                                href={fullFilePath}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="file-download-link"
+                                              >
+                                                Download{" "}
+                                                {fileExtension.toUpperCase()}{" "}
+                                                File
+                                              </a>
+                                            </div>
+                                          )}
+                                          {!isImage &&
+                                            !isVideo &&
+                                            !isAudio &&
+                                            !isDocument &&
+                                            !isSpreadsheet &&
+                                            !isPresentationFile && (
+                                              <a
+                                                href={fullFilePath}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="file-download-link"
+                                              >
+                                                Download{" "}
+                                                {fileExtension.toUpperCase()}{" "}
+                                                File
+                                              </a>
+                                            )}
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              )}
+                            <span>
+                              {moment(message.createdAt).format("hh:mm A")}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

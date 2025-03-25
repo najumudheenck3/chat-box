@@ -232,7 +232,7 @@ input::placeholder {
   align-items: flex-start;
 }
 
-.chatwrapper .chatBox .agent img {
+.agent-profile-img {
   width: 50px;
   height: 50px;
   object-fit: cover;
